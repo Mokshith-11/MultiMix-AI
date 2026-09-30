@@ -14,7 +14,7 @@ faster-whisper>=1.1.0
 ctranslate2>=4.5.0
 
 # Language Identification (LID)
-fasttext-wheel>=0.9.2
+fasttext-wheel==0.9.2
 
 # Speech Synthesis (TTS — IndicF5 & Vocoder)
 vocos>=0.1.0
