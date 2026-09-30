@@ -4,7 +4,12 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.config import GENERATED_AUDIO_DIR, UPLOADS_AUDIO_DIR
+from src.config import (
+    GENERATED_AUDIO_DIR,
+    UPLOADS_AUDIO_DIR,
+    check_model_availability,
+    get_deployment_mode,
+)
 from src.language.detector import analyze_code_mix
 from src.language.segmenter import get_language_segments
 from src.normalization.corrector import normalize_text
@@ -24,6 +29,10 @@ st.set_page_config(
     page_icon="🌐",
     layout="centered",
 )
+
+# Deployment and model availability status
+model_status = check_model_availability()
+deployment_mode = get_deployment_mode()
 
 # Language Display Mapping Helper
 LANG_NAME_MAP = {
@@ -51,9 +60,25 @@ def format_detected_languages(languages_list) -> str:
 # HEADER
 # ============================================================
 
-st.title("MULTIMIX AI")
-st.subheader("Multilingual & Code-Mixed Conversational AI")
+col_head, col_mode = st.columns([3, 1])
+with col_head:
+    st.title("MULTIMIX AI")
+    st.subheader("Multilingual & Code-Mixed Conversational AI")
+with col_mode:
+    st.write("")
+    if deployment_mode == "FULL LOCAL MODEL":
+        st.success("🟢 **Full Local Model**")
+    else:
+        st.info("☁️ **Free Cloud Demo**")
+
 st.caption("Understand and respond to multilingual Indian code-mixed text and voice.")
+
+if deployment_mode != "FULL LOCAL MODEL":
+    st.info(
+        "ℹ️ **Streamlit Cloud Demo Mode Active**: Linguistic analysis, token segmentation, normalization, "
+        "and semantic interpretation run in pure software mode. Heavy model weights (Qwen, Faster-Whisper, IndicF5) "
+        "are not provisioned in this free cloud demo."
+    )
 
 st.divider()
 
@@ -96,17 +121,19 @@ with tab_text:
                     det_langs = list({s["language"] for s in segments if s.get("language")})
 
                 # Progress Step 2: AI Response
-                with st.spinner("Generating AI response..."):
-                    response_text = generate_response(
-                        text=input_text,
-                        segments=segments,
-                        semantic_input=semantic.get("semantic_text", input_text),
-                        max_new_tokens=100,
-                    )
+                response_text = ""
+                if model_status.get("qwen"):
+                    with st.spinner("Generating AI response..."):
+                        response_text = generate_response(
+                            text=input_text,
+                            segments=segments,
+                            semantic_input=semantic.get("semantic_text", input_text),
+                            max_new_tokens=100,
+                        )
 
                 # Progress Step 3: Voice Response
                 audio_path = None
-                if response_text:
+                if response_text and model_status.get("indicf5"):
                     with st.spinner("Generating voice response..."):
                         try:
                             output_dir = GENERATED_AUDIO_DIR
@@ -139,6 +166,8 @@ with tab_text:
                 st.subheader("🤖 MultiMix AI Response")
                 if response_text:
                     st.success(response_text)
+                elif not model_status.get("qwen"):
+                    st.info("ℹ️ Local Qwen model is not provisioned in this free cloud demo.")
                 else:
                     st.warning("The AI model returned an empty response.")
 
@@ -147,6 +176,8 @@ with tab_text:
                 if audio_path and Path(audio_path).exists():
                     st.audio(audio_path, format="audio/wav")
                     st.caption("Generated using IndicF5")
+                elif not model_status.get("indicf5"):
+                    st.info("ℹ️ AI voice response is unavailable in the free cloud demo because IndicF5 is not provisioned.")
                 else:
                     st.info("Voice audio output is not available for this response.")
 
@@ -154,6 +185,7 @@ with tab_text:
                 # DEVELOPER DETAILS (COLLAPSED BY DEFAULT)
                 # ============================================
                 with st.expander("🛠️ Developer Details", expanded=False):
+                    st.write("**IndicLID Model Active:**", "Yes" if detection.get("indiclid_available") else "No (Fallback Mode)")
                     st.write("**Language Count:**", detection.get("language_count", len(det_langs)))
                     st.write("**Code-Mixed:**", "Yes" if detection.get("is_code_mixed") else "No")
                     st.write("**Language Segments:**")
@@ -185,6 +217,13 @@ with tab_voice:
         st.audio(audio_file, format=audio_file.type)
 
         if st.button("Process Voice", type="primary", use_container_width=True, key="btn_voice_submit"):
+            if not model_status.get("whisper"):
+                st.info(
+                    "ℹ️ Voice transcription and processing requires the local Faster-Whisper model, "
+                    "which is not provisioned in this free cloud demo."
+                )
+                st.stop()
+
             upload_dir = UPLOADS_AUDIO_DIR
             safe_filename = Path(audio_file.name).name
             save_audio_path = upload_dir / safe_filename
@@ -225,7 +264,7 @@ with tab_voice:
                     response_text = result.get("response", "")
                     audio_path = None
 
-                    if response_text:
+                    if response_text and model_status.get("indicf5"):
                         # Progress Step 2: Voice response generation
                         with st.spinner("Generating voice response..."):
                             try:
@@ -271,6 +310,8 @@ with tab_voice:
                     st.subheader("🤖 MultiMix AI Response")
                     if response_text:
                         st.success(response_text)
+                    elif not model_status.get("qwen"):
+                        st.info("ℹ️ Local Qwen model is not provisioned in this free cloud demo.")
                     elif result.get("response_error"):
                         st.warning("AI response generation encountered an issue.")
                     else:
@@ -281,11 +322,14 @@ with tab_voice:
                     if audio_path and Path(audio_path).exists():
                         st.audio(audio_path, format="audio/wav")
                         st.caption("Generated using IndicF5")
+                    elif not model_status.get("indicf5"):
+                        st.info("ℹ️ AI voice response is unavailable in the free cloud demo because IndicF5 is not provisioned.")
                     else:
                         st.info("Voice audio output is not available for this response.")
 
                     # DEVELOPER DETAILS (COLLAPSED BY DEFAULT)
                     with st.expander("🛠️ Developer Details", expanded=False):
+                        st.write("**IndicLID Model Active:**", "Yes" if result.get("indiclid_available", True) else "No (Fallback Mode)")
                         st.write("**ASR Quality Classification:**", asr_quality)
                         st.write("**ASR Quality Reasons:**", result.get("asr_quality_reasons", []))
                         st.write("**Pipeline Status:**", status)
@@ -309,4 +353,4 @@ with tab_voice:
 
 st.divider()
 
-st.caption("MultiMix AI — Multilingual Code-Mixed Language Understanding System")
+st.caption("MultiMix AI — Multilingual Code-Mixed Language Understanding System")

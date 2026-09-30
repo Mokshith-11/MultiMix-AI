@@ -1,3 +1,4 @@
+from pathlib import Path
 import re
 from typing import Dict, List
 
@@ -25,9 +26,55 @@ LANGUAGE_NAMES = {
 
 
 # IndicLID is used as a supporting signal.
-# It is NOT treated as the final authority because
-# sentence-level Romanized code-mixed text can be ambiguous.
-roman_model = fasttext.load_model(MODEL_PATH)
+# Lazy-load the fastText model safely so missing model weights in cloud/demo
+# environments do not crash application startup.
+_roman_model = None
+_indiclid_attempted = False
+
+
+def get_roman_model():
+    """
+    Lazy-load the IndicLID fastText model safely if the model file exists on disk.
+    Returns the loaded model instance, or None if the model is unavailable.
+    """
+    global _roman_model, _indiclid_attempted
+    if _roman_model is not None:
+        return _roman_model
+    if _indiclid_attempted:
+        return None
+
+    _indiclid_attempted = True
+    model_file = Path(MODEL_PATH)
+    if model_file.exists() and model_file.stat().st_size > 1000:
+        try:
+            _roman_model = fasttext.load_model(str(model_file))
+            return _roman_model
+        except Exception:
+            _roman_model = None
+            return None
+    return None
+
+
+class _RomanModelProxy:
+    """Backwards-compatible proxy for roman_model that delegates to get_roman_model()."""
+
+    def __getattr__(self, name):
+        m = get_roman_model()
+        if m is None:
+            raise AttributeError(f"IndicLID fastText model is unavailable at {MODEL_PATH}")
+        return getattr(m, name)
+
+    def predict(self, *args, **kwargs):
+        m = get_roman_model()
+        if m is None:
+            return ((), ())
+        return m.predict(*args, **kwargs)
+
+    def __bool__(self):
+        return get_roman_model() is not None
+
+
+roman_model = _RomanModelProxy()
 
 
 # Romanized vocabulary for the languages currently
@@ -337,6 +384,7 @@ def predict_romanized(text: str, k: int = 5):
 
     IndicLID is treated as supporting evidence,
     not as the final decision for code-mixed text.
+    If the model is unavailable, returns an empty list.
     """
 
     text = text.strip()
@@ -344,7 +392,14 @@ def predict_romanized(text: str, k: int = 5):
     if not text:
         return []
 
-    labels, probabilities = roman_model.predict(text, k=k)
+    model = get_roman_model()
+    if model is None:
+        return []
+
+    try:
+        labels, probabilities = model.predict(text, k=k)
+    except Exception:
+        return []
 
     results = []
 
@@ -555,4 +610,5 @@ def analyze_code_mix(text: str) -> Dict:
         "script_languages": script_languages,
         "lexical_scores": lexical,
         "roman_predictions": roman_predictions,
+        "indiclid_available": get_roman_model() is not None,
     }
