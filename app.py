@@ -1,4 +1,5 @@
 import tempfile
+import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -109,7 +110,7 @@ with tab_text:
                     with st.spinner("Generating voice response..."):
                         try:
                             output_dir = GENERATED_AUDIO_DIR
-                            out_file = output_dir / "multimix_text_response.wav"
+                            out_file = output_dir / f"response_{uuid.uuid4().hex}.wav"
                             audio_path = synthesize_speech(
                                 text=response_text,
                                 output_path=str(out_file),
@@ -229,7 +230,7 @@ with tab_voice:
                         with st.spinner("Generating voice response..."):
                             try:
                                 output_dir = GENERATED_AUDIO_DIR
-                                voice_output = output_dir / "multimix_voice_response.wav"
+                                voice_output = output_dir / f"response_{uuid.uuid4().hex}.wav"
                                 audio_path = synthesize_speech(
                                     text=response_text,
                                     output_path=str(voice_output),

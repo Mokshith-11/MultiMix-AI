@@ -1,0 +1,44 @@
+# MultiMix AI — Docker Ignore
+# Exclude local environments, caches, git metadata, and large assets
+
+# Virtual environments
+.venv/
+tts_venv/
+venv/
+env/
+
+# Git metadata
+.git/
+.github/
+.gitignore
+
+# Caches and temporary test data
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+hf_cache/
+torch_cache/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+
+# Audio assets and uploads (generated dynamically at runtime)
+assets/audio/generated/
+assets/audio/uploads/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+
+# Large model weights (models are mounted via volume or provisioned dynamically)
+models/

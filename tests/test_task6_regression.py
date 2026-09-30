@@ -564,10 +564,10 @@ def test_step10_complete_voice_pipeline():
                       "response_error is None")
 
     # Verify TTS integration can generate audio for usable voice pipeline response
-    voice_audio_path = GENERATED_AUDIO_DIR / "multimix_voice_response.wav"
+    voice_wavs = list(GENERATED_AUDIO_DIR.glob("*.wav"))
     record_result("Voice Pipeline", "TTS output generated for voice response",
-                  voice_audio_path.exists() and voice_audio_path.stat().st_size > 0,
-                  f"WAV: {voice_audio_path.name} ({voice_audio_path.stat().st_size} bytes)")
+                  len(voice_wavs) > 0 and any(w.stat().st_size > 0 for w in voice_wavs),
+                  f"Found {len(voice_wavs)} WAV asset(s) in {GENERATED_AUDIO_DIR.name}")
 
 
 # =====================================================================

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, Optional
 
 import torch
@@ -26,6 +27,13 @@ def load_model():
 
     if _tokenizer is not None and _model is not None:
         return _tokenizer, _model
+
+    model_dir = Path(MODEL_PATH)
+    if not model_dir.exists() or not (model_dir / "config.json").exists():
+        raise FileNotFoundError(
+            f"Qwen model not found at {MODEL_PATH}. "
+            "Please run 'python scripts/download_models.py' to provision deployment models."
+        )
 
     _tokenizer = AutoTokenizer.from_pretrained(
         MODEL_PATH,

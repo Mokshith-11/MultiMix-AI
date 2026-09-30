@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import sys
+import uuid
 import soundfile as sf
 
 
@@ -132,8 +133,9 @@ def synthesize_speech(
             exist_ok=True,
         )
 
+        unique_id = uuid.uuid4().hex
         output_path = (
-            OUTPUT_DIR / "multimix_response.wav"
+            OUTPUT_DIR / f"response_{unique_id}.wav"
         )
 
     output_path = Path(output_path)

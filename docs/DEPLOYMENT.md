@@ -1,6 +1,6 @@
-# MultiMix AI — Deployment Guide & Infrastructure Roadmap
+# MultiMix AI — Cloud Deployment & Containerization Guide
 
-This document outlines the current deployment status of MultiMix AI and details the target architecture for future production cloud deployment.
+This document provides operational instructions for local deployment, containerization (Docker), model provisioning, and cloud deployment targets for MultiMix AI.
 
 ---
 
@@ -8,103 +8,143 @@ This document outlines the current deployment status of MultiMix AI and details 
 
 | Deployment Environment | Current Status | Notes |
 | :--- | :--- | :--- |
-| **Local CPU (MVP)** | **Complete & Verified** | Full text and voice pipelines operational locally on CPU via Streamlit. |
-| **Cloud GPU Server** | **Not Deployed Yet** | Architecture designed; pending target cloud host selection and provisioning. |
-| **Public GitHub Repository** | **Not Finalized Yet** | Local codebase prepared, verified, and documented; ready for remote publication. |
+| **Local CPU / GPU (Development)** | **Complete & Verified** | Full text and voice pipelines operational locally on CPU via Streamlit. |
+| **Docker Container Ready** | **Configured & Ready** | Dockerfile, `.dockerignore`, and `scripts/start.sh` configured for Linux container runtime. |
+| **Cloud Production Hosting** | **Deployment Ready (Pending Cloud Host Selection)** | Containerized architecture ready for deployment to GPU Cloud (RunPod, Vast.ai, HF Spaces, AWS/GCP). |
 
-MultiMix AI is currently an **offline-capable, locally runnable Minimum Viable Product (MVP)**. It has not yet been deployed to public cloud services (such as AWS, GCP, or Hugging Face Spaces).
-
----
-
-## 2. Local MVP Architecture
-
-Currently, all subsystems run in a single Python environment on the host machine:
-
-```
-[User Browser]
-      │
-      ▼ (HTTP / WebSocket)
-[Streamlit Server (app.py)]
-      │
-      ├──> faster-whisper large-v3-turbo (Local CPU INT8)
-      ├──> Language Detection & Segmentation (Local Rule Engine + fastText)
-      ├──> Normalization & Semantic Grounding (Local Rule Engine)
-      ├──> Qwen 2.5 1.5B Instruct (Local CPU Float32)
-      └──> IndicF5 TTS & Vocos Vocoder (Local CPU Float32)
-```
-
-### Operational Characteristics of Local CPU Deployment
-- **Advantages:** Complete data privacy, zero external cloud costs, offline operation, zero API key dependencies.
-- **Trade-offs:** High latency on CPU (ASR ~50-100s, TTS ~2-3 min per request).
+> **IMPORTANT:** MultiMix AI is currently an offline-capable, locally validated application. No live cloud deployment exists yet. Model weights are intentionally excluded from Git and Docker images to keep the repository lightweight and modular.
 
 ---
 
-## 3. Future Cloud GPU Production Architecture
+## 2. Local Execution
 
-To transition MultiMix AI from a local MVP to a production service with sub-second response times, the recommended target deployment architecture decouples the front-end user interface from GPU inference microservices.
+To run MultiMix AI directly on your local workstation:
 
-```mermaid
-flowchart TD
-    Client[Web & Mobile Clients] --> LB[Load Balancer / Cloudflare]
-    LB --> FE[Streamlit Web Frontend / FastAPI Gateway]
-    
-    subgraph GPU Inference Cluster [GPU Server: NVIDIA A10G / A100 / L4]
-        FE -->|Audio Stream| ASR_SVC[faster-whisper Service (CUDA FP16)]
-        ASR_SVC -->|Transcription Text| NLP_SVC[Multilingual Segmentation & Semantic Engine]
-        NLP_SVC -->|Grounded Prompt| LLM_SVC[Qwen 2.5 1.5B (vLLM / Hugging Face TGI)]
-        LLM_SVC -->|Response Text| TTS_SVC[IndicF5 + Vocos (CUDA FP16)]
-        TTS_SVC -->|Audio Output (WAV)| FE
-    end
+```bash
+# 1. Activate your virtual environment
+# Windows:
+.\.venv\Scripts\Activate.ps1
+# Linux / macOS:
+source .venv/bin/activate
 
-    subgraph Storage & Cache
-        FE <--> S3[Object Storage: S3 / GCS (Audio Artifacts)]
-        LLM_SVC <--> REDIS[(Redis Cache / Session State)]
-    end
+# 2. Verify model provisioning
+python scripts/download_models.py
+
+# 3. Launch Streamlit
+streamlit run app.py
 ```
 
-### Recommended Infrastructure Specifications
-- **GPU Accelerator:** 1x NVIDIA A10G (24 GB VRAM) or NVIDIA L4 (24 GB VRAM).
-- **Host System:** 4-8 vCPU, 32 GB System RAM.
-- **OS / Container:** Ubuntu 22.04 LTS with NVIDIA Container Toolkit (Docker).
-- **Serving Stack:**
-  - *LLM Serving:* `vLLM` or Hugging Face Text Generation Inference (TGI) for high-throughput batching.
-  - *ASR Serving:* CTranslate2 with CUDA execution provider.
-  - *TTS Serving:* PyTorch with CUDA acceleration (reducing ODE solver latency to < 2 seconds).
+The application will be accessible at `http://localhost:8501`.
 
 ---
 
-## 4. Containerization Roadmap (Docker)
+## 3. Model Provisioning (`scripts/download_models.py`)
 
-A future production deployment should containerize the service using a multi-stage Dockerfile:
+MultiMix AI requires 5 model categories to run complete speech and text pipelines:
+1. **Qwen 2.5 1.5B Instruct:** Large language model for multilingual conversational reasoning (`models/qwen2.5-1.5b-instruct`).
+2. **faster-whisper large-v3-turbo:** Speech-to-text transcription engine (`models/whisper-turbo`).
+3. **IndicLID:** Language identification fastText model (`models/indiclid/indiclid-model.bin`).
+4. **IndicF5:** Non-autoregressive flow-matching speech synthesis model (`models/indicf5/model.safetensors`, vocab, and reference prompt).
+5. **Vocos:** Neural audio vocoder for IndicF5 audio decoding (`models/indicf5/models--charactr--vocos-mel-24khz`).
 
-```dockerfile
-# Concept Dockerfile for GPU Deployment
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+### Provisioning Command:
+```bash
+python scripts/download_models.py
+```
 
-WORKDIR /app
+- **Safe Execution:** The script creates required directories, verifies existing assets, and skips redownloading valid files.
+- **Repeatable:** Can be run multiple times safely without overwriting or corrupting valid local assets.
+- **Explicit Execution:** The script is never invoked automatically during standard development tests or unit runs.
 
-RUN apt-get update && apt-get install -y \
-    python3.12 \
-    python3-pip \
-    ffmpeg \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
+---
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+## 4. Docker Containerization
 
-COPY . .
+MultiMix AI includes a standardized `Dockerfile`, `.dockerignore`, and container startup script (`scripts/start.sh`).
 
-EXPOSE 8501
+### 4.1 Linux System Dependencies
+The container builds upon `python:3.12-slim` and installs essential native media and compilation packages:
+- `ffmpeg`: Audio transcoding, decoding, and slicing for Whisper and Librosa.
+- `libsndfile1`: Low-level audio I/O backend for SoundFile.
+- `build-essential` & `git`: C/C++ compilation tools required for native extensions (such as FastText).
+- `curl`: Network diagnostics and health checking.
 
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+### 4.2 Building the Docker Image
+```bash
+# Build the image from project root (excluding model weights via .dockerignore)
+docker build -t multimix-ai:latest .
+```
+
+### 4.3 Running the Docker Container
+Because models are excluded from the Docker image, the recommended workflow mounts a persistent model directory from the host:
+
+```bash
+# Run container with mounted models directory (CPU Mode)
+docker run -d \
+  --name multimix-ai-app \
+  -p 8501:8501 \
+  -v $(pwd)/models:/app/models \
+  multimix-ai:latest
+```
+
+### 4.4 Startup Script & Dynamic Model Provisioning
+The container entrypoint executes `scripts/start.sh`, which:
+1. Verifies that `assets/audio/generated`, `assets/audio/uploads`, and `models` exist.
+2. Checks the `PROVISION_MODELS` environment variable. If set to `1` or `true`, it automatically executes `scripts/download_models.py` before starting the server.
+3. Binds Streamlit to `0.0.0.0` and listens on `${PORT:-8501}`.
+
+```bash
+# Run with automatic on-first-start model download:
+docker run -d \
+  --name multimix-ai-auto \
+  -p 8501:8501 \
+  -e PROVISION_MODELS=1 \
+  -v multimix_models_volume:/app/models \
+  multimix-ai:latest
 ```
 
 ---
 
-## 5. Security & Network Considerations for Cloud Deployment
+## 5. Hardware & GPU Recommendations
 
-When deploying MultiMix AI to cloud environments:
-1. **Model Storage:** Host models on cloud object storage (S3 / GCS) or pull directly from Hugging Face Hub during container provisioning rather than embedding weights inside container images.
-2. **Audio File Retention:** Implement an automatic TTL (Time to Live) on uploaded audio files and generated speech outputs to protect user data privacy.
-3. **Transport Encryption:** Terminate TLS/SSL at the load balancer or reverse proxy (Nginx / Cloudflare).
+| Metric | CPU Execution (Testing / Demo) | GPU Execution (Recommended Production) |
+| :--- | :--- | :--- |
+| **Primary Use** | Unit testing, CI/CD, functional demonstration | Interactive user experience, low latency |
+| **ASR Latency (Whisper)** | ~30 – 90 seconds | ~1 – 3 seconds |
+| **LLM Reasoning (Qwen)** | ~2 – 5 seconds | < 500 ms |
+| **TTS Synthesis (IndicF5)** | ~90 – 180 seconds | ~2 – 4 seconds |
+| **Recommended Hardware** | 8+ vCPU cores, 16+ GB RAM | 1x NVIDIA A10G / L4 / RTX 4090 (24 GB VRAM) |
+
+> **NOTE:** CPU execution is fully supported and verified for development, testing, and functional demonstrations. GPU acceleration is strongly recommended for interactive voice workloads due to the computational demands of the 32-step ODE flow-matching solver in IndicF5.
+
+---
+
+## 6. Cloud Deployment Targets
+
+### 6.1 RunPod / Vast.ai (Dedicated GPU Instances)
+For optimal interactive performance and dedicated GPU access:
+1. Deploy a container instance using template: `nvidia/cuda:12.1.1-devel-ubuntu22.04` or the custom MultiMix Docker image.
+2. Attach a **Persistent Network Volume** (at least 30 GB) mounted to `/app/models`.
+3. Set environment variables:
+   - `PORT=8501`
+   - `PROVISION_MODELS=1` (for initial startup only)
+4. Expose HTTP port 8501 to external traffic.
+
+### 6.2 Hugging Face Spaces (Docker Space)
+1. Create a new Space selecting the **Docker** SDK.
+2. Configure hardware to **Nvidia A10G Large** (recommended) or **ZeroGPU**.
+3. In Space Settings, allocate persistent storage under `/data` or mount models directory.
+4. Set secret/variable `PORT=7860` (Hugging Face Spaces default web port). Streamlit and `scripts/start.sh` automatically detect `$PORT`.
+
+### 6.3 Kubernetes / AWS ECS / Google Cloud Run
+- **Port:** Uses the standard Cloud Run / PaaS `$PORT` environment variable.
+- **Health Check:** HTTP GET on `/_stcore/health`.
+- **Persistent Volume Claim:** Bind persistent storage for `/app/models` to prevent downloading weights on every container cold start.
+
+---
+
+## 7. Storage, Audio Artifacts & Concurrency
+
+- **UUID Audio Filenames:** All generated audio files use UUIDs (`response_<uuid>.wav`) to prevent race conditions and audio overwrites when multiple users interact simultaneously.
+- **Audio Cleanup:** Uploaded audio (`assets/audio/uploads/`) and generated audio (`assets/audio/generated/`) should be cleared periodically via a scheduled cron job or container restart.
+- **No In-Tree Weights:** Git repository size remains < 10 MB, strictly complying with cloud deployment best practices.

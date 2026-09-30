@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict
 
 from src.config import GENERATED_AUDIO_DIR
@@ -43,7 +44,7 @@ def generate_voice_response(
 
     audio_path = (
         output_dir
-        / "multimix_ai_response.wav"
+        / f"response_{uuid.uuid4().hex}.wav"
     )
 
     generated_audio = synthesize_speech(
