@@ -26,5 +26,8 @@ einops>=0.8.0
 x-transformers>=1.30.0
 jieba>=0.42.1
 
+# HTTP Client for Remote Backend API
+requests>=2.31.0
+
 # Web Application UI
 streamlit>=1.35.0
