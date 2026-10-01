@@ -70,7 +70,7 @@ def get_modal_backend_url() -> str:
     return url.strip()
 
 
-def call_modal_backend(payload: dict, timeout_seconds: int = 120) -> dict:
+def call_modal_backend(payload: dict, timeout_seconds: int = 300) -> dict:
     """Send JSON payload over HTTPS to the deployed Modal GPU backend."""
     url = get_modal_backend_url()
     try:
