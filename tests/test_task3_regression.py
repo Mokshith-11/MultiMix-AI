@@ -56,7 +56,7 @@ def divider(title: str):
 def test_whisper_engine_quality():
     divider("TEST 1: whisper_engine quality fields")
 
-    from src.voice.whisper_engine import transcribe_audio
+    from multimix_src.voice.whisper_engine import transcribe_audio
 
     for audio_path in AUDIO_FILES:
         print(f"\n  File: {audio_path.name}")
@@ -92,7 +92,7 @@ def test_whisper_engine_quality():
 def test_validate_asr_quality_unit():
     divider("TEST 2: validate_asr_quality() unit tests")
 
-    from src.voice.whisper_engine import validate_asr_quality
+    from multimix_src.voice.whisper_engine import validate_asr_quality
 
     # Good transcription
     good = validate_asr_quality({
@@ -173,7 +173,7 @@ def test_validate_asr_quality_unit():
 def test_pipeline_with_quality():
     divider("TEST 3: Full voice pipeline with ASR quality")
 
-    from src.voice.pipeline import process_voice
+    from multimix_src.voice.pipeline import process_voice
 
     for audio_path in AUDIO_FILES:
         print(f"\n  File: {audio_path.name}")
@@ -206,10 +206,10 @@ def test_pipeline_with_quality():
 def test_text_pipeline():
     divider("TEST 4: Text pipeline (Qwen) still works")
 
-    from src.language.segmenter import get_language_segments
-    from src.normalization.corrector import normalize_text
-    from src.semantic.interpreter import interpret_code_mix
-    from src.response.generator import generate_response
+    from multimix_src.language.segmenter import get_language_segments
+    from multimix_src.normalization.corrector import normalize_text
+    from multimix_src.semantic.interpreter import interpret_code_mix
+    from multimix_src.response.generator import generate_response
 
     text = "Nenu today college ki vellanu, but my friend Tamil-la pesitu irundhan"
     segments = get_language_segments(text)
@@ -238,7 +238,7 @@ def test_text_pipeline():
 def test_failed_asr_handling():
     divider("TEST 5: Failed ASR handling in pipeline")
 
-    from src.voice.pipeline import _empty_result, _ASR_FAILED_MESSAGE
+    from multimix_src.voice.pipeline import _empty_result, _ASR_FAILED_MESSAGE
 
     # Simulate what happens when ASR quality is "failed"
     result = _empty_result(

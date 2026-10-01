@@ -18,7 +18,7 @@ MODEL_PATH = INDICF5_ROOT / "model.safetensors"
 VOCAB_PATH = INDICF5_ROOT / "checkpoints" / "vocab.txt"
 REFERENCE_AUDIO = INDICF5_ROOT / "prompts" / "PAN_F_HAPPY_00001.wav"
 
-REFERENCE_TEXT = "Namaste, aaj aap kaise hain?"
+REFERENCE_TEXT = "ਭਹੰਪੀ ਵਿੱਚ ਸਮਾਰਕਾਂ ਦੇ ਭਵਨ ਨਿਰਮਾਣ ਕਲਾ ਦੇ ਵੇਰਵੇ ਗੁੰਝਲਦਾਰ ਅਤੇ ਹੈਰਾਨ ਕਰਨ ਵਾਲੇ ਹਨ, ਜੋ ਮੈਨੂੰ ਖੁਸ਼ ਕਰਦੇ ਹਨ।"
 
 OUTPUT_DIR = GENERATED_AUDIO_DIR
 

@@ -143,7 +143,7 @@ def test_step12_imports():
 
 def test_step2_language_detection():
     section_header("STEP 2: Language Detection")
-    from src.language.detector import analyze_code_mix
+    from multimix_src.language.detector import analyze_code_mix
 
     cases = [
         ("English sentence", "I am going to office today", "English"),
@@ -181,8 +181,8 @@ def test_step2_language_detection():
 
 def test_step3_normalization():
     section_header("STEP 3: Normalization & Token Preservation")
-    from src.normalization.corrector import normalize_token, normalize_text
-    from src.language.segmenter import get_language_segments
+    from multimix_src.normalization.corrector import normalize_token, normalize_text
+    from multimix_src.language.segmenter import get_language_segments
 
     # Required slang/abbreviation mappings
     expected_mappings = [
@@ -234,8 +234,8 @@ def test_step3_normalization():
 
 def test_step4_semantic_interpretation():
     section_header("STEP 4: Semantic Interpretation")
-    from src.language.segmenter import get_language_segments
-    from src.semantic.interpreter import interpret_code_mix
+    from multimix_src.language.segmenter import get_language_segments
+    from multimix_src.semantic.interpreter import interpret_code_mix
 
     cases = [
         ("English", "I went to the office today", ["I", "went", "office"]),
@@ -277,8 +277,8 @@ def test_step4_semantic_interpretation():
 
 def test_step5_qwen():
     section_header("STEP 5: Qwen Model & Grounded Generation")
-    from src.response.generator import load_model, generate_response
-    from src.language.segmenter import get_language_segments
+    from multimix_src.response.generator import load_model, generate_response
+    from multimix_src.language.segmenter import get_language_segments
 
     # 1. Model loading
     t0 = time.time()
@@ -325,8 +325,8 @@ def test_step5_qwen():
 
 def test_step6_faster_whisper():
     section_header("STEP 6: Faster-Whisper ASR (large-v3-turbo, CPU INT8)")
-    from src.voice.whisper_engine import transcribe_audio, load_whisper_model
-    from src.config import AUDIO_DIR
+    from multimix_src.voice.whisper_engine import transcribe_audio, load_whisper_model
+    from multimix_src.config import AUDIO_DIR
 
     model = load_whisper_model()
     record_result("Faster-Whisper", "Model loads successfully",
@@ -377,8 +377,8 @@ def test_step6_faster_whisper():
 
 def test_step7_asr_failure_handling():
     section_header("STEP 7: ASR Failure & Rejection Handling")
-    from src.voice.pipeline import _empty_result, _ASR_FAILED_MESSAGE, process_voice
-    from src.voice.whisper_engine import validate_asr_quality
+    from multimix_src.voice.pipeline import _empty_result, _ASR_FAILED_MESSAGE, process_voice
+    from multimix_src.voice.whisper_engine import validate_asr_quality
 
     # 1. validate_asr_quality handles low/failed scenarios accurately
     empty_q = validate_asr_quality({"text": "", "avg_logprob": -0.1, "no_speech_prob": 0.0})
@@ -426,8 +426,8 @@ def test_step7_asr_failure_handling():
 def test_step8_indicf5():
     section_header("STEP 8: IndicF5 Speech Synthesis")
     import soundfile as sf
-    from src.voice.tts_engine import _load_engine, synthesize_speech
-    from src.config import GENERATED_AUDIO_DIR
+    from multimix_src.voice.tts_engine import _load_engine, synthesize_speech
+    from multimix_src.config import GENERATED_AUDIO_DIR
 
     # 1. Load engine
     t0 = time.time()
@@ -463,13 +463,13 @@ def test_step8_indicf5():
 
 def test_step9_complete_text_pipeline():
     section_header("STEP 9: Complete End-to-End Text Pipeline")
-    from src.language.detector import analyze_code_mix
-    from src.language.segmenter import get_language_segments
-    from src.normalization.corrector import normalize_text
-    from src.semantic.interpreter import interpret_code_mix
-    from src.response.generator import generate_response
-    from src.voice.tts_engine import synthesize_speech
-    from src.config import GENERATED_AUDIO_DIR
+    from multimix_src.language.detector import analyze_code_mix
+    from multimix_src.language.segmenter import get_language_segments
+    from multimix_src.normalization.corrector import normalize_text
+    from multimix_src.semantic.interpreter import interpret_code_mix
+    from multimix_src.response.generator import generate_response
+    from multimix_src.voice.tts_engine import synthesize_speech
+    from multimix_src.config import GENERATED_AUDIO_DIR
 
     text = "Nenu today college ki vellanu, but my friend Tamil-la pesitu irundhan"
 
@@ -528,9 +528,9 @@ def test_step9_complete_text_pipeline():
 
 def test_step10_complete_voice_pipeline():
     section_header("STEP 10: Complete End-to-End Voice Pipeline")
-    from src.voice.pipeline import process_voice
-    from src.config import AUDIO_DIR, GENERATED_AUDIO_DIR
-    from src.voice.tts_engine import synthesize_speech
+    from multimix_src.voice.pipeline import process_voice
+    from multimix_src.config import AUDIO_DIR, GENERATED_AUDIO_DIR
+    from multimix_src.voice.tts_engine import synthesize_speech
 
     audio_files = [
         AUDIO_DIR / "WhatsApp Audio 2026-09-29 at 12.29.00 PM.mp4",

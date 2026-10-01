@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from src.config import INDICF5_MODEL_DIR, AUDIO_DIR
+from multimix_src.config import INDICF5_MODEL_DIR, AUDIO_DIR
 
 ROOT = INDICF5_MODEL_DIR
 sys.path.insert(0, str(ROOT))

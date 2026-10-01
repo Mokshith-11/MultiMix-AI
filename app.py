@@ -4,20 +4,20 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.config import (
+from multimix_src.config import (
     GENERATED_AUDIO_DIR,
     UPLOADS_AUDIO_DIR,
     check_model_availability,
     get_deployment_mode,
 )
-from src.language.detector import analyze_code_mix
-from src.language.segmenter import get_language_segments
-from src.normalization.corrector import normalize_text
-from src.semantic.interpreter import interpret_code_mix
-from src.response.generator import generate_response
-from src.response.voice_response import generate_voice_response
-from src.voice.pipeline import process_voice
-from src.voice.tts_engine import synthesize_speech
+from multimix_src.language.detector import analyze_code_mix
+from multimix_src.language.segmenter import get_language_segments
+from multimix_src.normalization.corrector import normalize_text
+from multimix_src.semantic.interpreter import interpret_code_mix
+from multimix_src.response.generator import generate_response
+from multimix_src.response.voice_response import generate_voice_response
+from multimix_src.voice.pipeline import process_voice
+from multimix_src.voice.tts_engine import synthesize_speech
 
 
 # ============================================================

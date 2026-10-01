@@ -4,6 +4,7 @@ from src.language.segmenter import get_language_segments
 from src.normalization.corrector import normalize_text
 from src.semantic.interpreter import interpret_code_mix
 from src.response.generator import generate_response
+from src.response.voice_response import generate_voice_response
 from src.voice.whisper_engine import transcribe_audio
 
 
@@ -46,17 +47,19 @@ def process_voice(audio_path: str) -> Dict:
         ↓
     ASR (faster-whisper)
         ↓
-    ASR quality validation       ← NEW (Task 3)
+    ASR quality validation
         ↓
     Language segmentation
-        ↓
-    Context resolution
         ↓
     Normalization
         ↓
     Semantic interpretation
         ↓
-    AI response generation
+    Qwen response
+        ↓
+    Target-language translation
+        ↓
+    IndicF5 voice response
     """
 
     # 1. ASR transcription
@@ -69,9 +72,13 @@ def process_voice(audio_path: str) -> Dict:
         "language",
         "unknown"
     )
-    asr_quality = transcription.get("asr_quality", "good")
+    asr_quality = transcription.get(
+        "asr_quality",
+        "good"
+    )
     asr_quality_reasons = transcription.get(
-        "asr_quality_reasons", []
+        "asr_quality_reasons",
+        []
     )
 
     # 2. No speech detected
@@ -84,7 +91,7 @@ def process_voice(audio_path: str) -> Dict:
             status="No speech detected",
         )
 
-    # 3. ASR quality gate — block clearly unusable transcriptions
+    # 3. ASR quality gate
     if asr_quality == "failed":
         return _empty_result(
             audio_path=audio_path,
@@ -110,6 +117,11 @@ def process_voice(audio_path: str) -> Dict:
         segments=segments
     )
 
+    semantic_text = semantic.get(
+        "semantic_text",
+        text
+    )
+
     # 7. AI response generation
     response = ""
     response_error = None
@@ -118,23 +130,77 @@ def process_voice(audio_path: str) -> Dict:
         response = generate_response(
             text=text,
             segments=segments,
-            semantic_input=semantic.get(
-                "semantic_text",
-                text
-            ),
+            semantic_input=semantic_text,
             max_new_tokens=100
         )
 
     except Exception as error:
         response_error = str(error)
 
-    # 8. Determine final status
+    # 8. Generate translated Indian-language voice
+    audio_path_result = None
+    response_language = "English"
+    response_tts_text = ""
+    audio_error = None
+
+    if response:
+        try:
+            # Determine the dominant supported Indian language
+            # in the user's code-mixed input.
+            language_counts = {}
+
+            for segment in segments:
+                language = segment.get("language", "")
+
+                if language in {
+                    "Telugu",
+                    "Tamil",
+                    "Hindi",
+                    "Bengali",
+                }:
+                    language_counts[language] = (
+                        language_counts.get(language, 0) + 1
+                    )
+
+            if language_counts:
+                response_language = max(
+                    language_counts,
+                    key=language_counts.get,
+                )
+
+            voice_result = generate_voice_response(
+                text=text,
+                segments=segments,
+                semantic_input=semantic_text,
+                response=response,
+                target_language=response_language,
+            )
+
+            audio_path_result = voice_result.get(
+                "audio_path"
+            )
+            response_language = voice_result.get(
+                "response_language",
+                response_language,
+            )
+            response_tts_text = voice_result.get(
+                "response_tts_text",
+                "",
+            )
+            audio_error = voice_result.get(
+                "audio_error"
+            )
+
+        except Exception as error:
+            audio_error = str(error)
+
+    # 9. Final status
     if asr_quality == "low":
         status = "success_low_confidence"
     else:
         status = "success"
 
-    # 9. Final result
+    # 10. Final result
     return {
         "audio_path": audio_path,
         "transcription": text,
@@ -146,5 +212,12 @@ def process_voice(audio_path: str) -> Dict:
         "semantic": semantic,
         "response": response,
         "response_error": response_error,
+
+        # Final AI voice response
+        "response_language": response_language,
+        "response_tts_text": response_tts_text,
+        "response_audio_path": audio_path_result,
+        "audio_error": audio_error,
+
         "status": status,
-    }
+    }

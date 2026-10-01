@@ -46,7 +46,7 @@ def divider(title: str):
 def test_whisper_engine():
     divider("TEST 1: whisper_engine.transcribe_audio()")
 
-    from src.voice.whisper_engine import transcribe_audio, load_whisper_model, get_device
+    from multimix_src.voice.whisper_engine import transcribe_audio, load_whisper_model, get_device
 
     print(f"Device: {get_device()}")
 
@@ -84,10 +84,10 @@ def test_whisper_engine():
 def test_text_pipeline():
     divider("TEST 2: Text pipeline (segmenter + normalizer + semantic + Qwen)")
 
-    from src.language.segmenter import get_language_segments
-    from src.normalization.corrector import normalize_text
-    from src.semantic.interpreter import interpret_code_mix
-    from src.response.generator import generate_response
+    from multimix_src.language.segmenter import get_language_segments
+    from multimix_src.normalization.corrector import normalize_text
+    from multimix_src.semantic.interpreter import interpret_code_mix
+    from multimix_src.response.generator import generate_response
 
     for text in TEXT_TESTS:
         print(f"\n--- Input: {text} ---")
@@ -123,7 +123,7 @@ def test_text_pipeline():
 def test_voice_pipeline():
     divider("TEST 3: Full voice pipeline (process_voice)")
 
-    from src.voice.pipeline import process_voice
+    from multimix_src.voice.pipeline import process_voice
 
     for audio_path in AUDIO_FILES:
         print(f"\n--- {audio_path.name} ---")

@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from faster_whisper import WhisperModel
 
-from src.config import WHISPER_TURBO_MODEL_DIR, AUDIO_DIR
+from multimix_src.config import WHISPER_TURBO_MODEL_DIR, AUDIO_DIR
 
 MODEL_ROOT = WHISPER_TURBO_MODEL_DIR
 AUDIO_DIR = AUDIO_DIR

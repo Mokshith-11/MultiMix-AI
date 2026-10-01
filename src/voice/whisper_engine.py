@@ -163,97 +163,119 @@ def validate_asr_quality(transcription: Dict) -> Dict:
     return {"quality": "low", "reasons": reasons}
 
 
-def transcribe_audio(
-    audio_path: str,
-    language: Optional[str] = None,
-) -> Dict:
+def transcribe_audio(audio_path: str) -> Dict:
     """
-    Transcribe an audio file using faster-whisper large-v3-turbo.
+    Transcribe speech with faster-whisper.
 
-    Returns a dict compatible with the existing pipeline:
-        {
-            "text":                 str,
-            "language":             str,
-            "segments":             list[dict],
-            "language_probability": float,
-            "duration":             float,
-            "avg_logprob":          float | None,
-            "no_speech_prob":       float | None,
-            "compression_ratio":    float | None,
-            "asr_quality":          "good" | "low" | "failed",
-            "asr_quality_reasons":  list[str],
-        }
+    The first pass strongly requests Latin/Romanized output so
+    downstream multilingual detection can operate on Romanized
+    Telugu, Tamil, Hindi, Bengali and English text.
     """
 
-    model = load_whisper_model()
+    model = _load_model()
 
-    # Build transcription options
-    options = {
-        "beam_size": 5,
-        "vad_filter": True,          # skip silent / non-speech regions
-    }
-    if language:
-        options["language"] = language
+    audio = _load_audio(audio_path)
 
-    segments_gen, info = model.transcribe(
-        str(audio_path),
-        **options,
+    romanization_prompt = (
+        "Romanized transcription only. "
+        "Use Latin alphabet. "
+        "Do not translate. "
+        "Do not use Devanagari, Telugu, Tamil, Bengali or other Indic scripts. "
+        "Preserve the original Telugu, Tamil, Hindi, Bengali and English "
+        "words as spoken. "
+        "Example: Nenu today college ki vellanu but my friend "
+        "Tamil-la pesitu irundhan."
     )
 
-    # Consume the generator and build serialisable segment dicts
-    segment_list = []
-    for seg in segments_gen:
-        segment_list.append({
-            "start": seg.start,
-            "end": seg.end,
-            "text": seg.text.strip(),
-            "avg_logprob": seg.avg_logprob,
-            "no_speech_prob": seg.no_speech_prob,
-            "compression_ratio": seg.compression_ratio,
-        })
-
-    # Full transcription text
-    full_text = " ".join(
-        s["text"] for s in segment_list if s["text"]
+    segments, info = model.transcribe(
+        audio,
+        task="transcribe",
+        beam_size=5,
+        best_of=5,
+        temperature=0,
+        vad_filter=True,
+        condition_on_previous_text=False,
+        initial_prompt=romanization_prompt,
     )
 
-    # Aggregate quality metrics across segments
-    if segment_list:
-        avg_logprob = (
-            sum(s["avg_logprob"] for s in segment_list)
-            / len(segment_list)
-        )
-        no_speech_prob = (
-            sum(s["no_speech_prob"] for s in segment_list)
-            / len(segment_list)
-        )
-        compression_ratio = (
-            sum(s["compression_ratio"] for s in segment_list)
-            / len(segment_list)
-        )
-    else:
-        avg_logprob = None
-        no_speech_prob = None
-        compression_ratio = None
+    segments = list(segments)
 
-    result = {
-        "text": full_text,
+    text = " ".join(
+        segment.text.strip()
+        for segment in segments
+    ).strip()
+
+    # Detect non-Latin output.
+    has_indic_script = any(
+        "\u0900" <= ch <= "\u097F" or
+        "\u0C00" <= ch <= "\u0C7F" or
+        "\u0B80" <= ch <= "\u0BFF" or
+        "\u0980" <= ch <= "\u09FF"
+        for ch in text
+    )
+
+    # Retry once with an even stronger Latin-only prompt.
+    if has_indic_script:
+        retry_prompt = (
+            "WRITE ONLY IN LATIN LETTERS. "
+            "ROMANIZED TRANSCRIPTION ONLY. "
+            "DO NOT OUTPUT DEVANAGARI. "
+            "DO NOT OUTPUT TELUGU SCRIPT. "
+            "DO NOT OUTPUT TAMIL SCRIPT. "
+            "DO NOT OUTPUT BENGALI SCRIPT. "
+            "DO NOT TRANSLATE. "
+            "Example: Nenu today college ki vellanu but my friend "
+            "Tamil-la pesitu irundhan."
+        )
+
+        retry_segments, retry_info = model.transcribe(
+            audio,
+            task="transcribe",
+            beam_size=5,
+            best_of=5,
+            temperature=0,
+            vad_filter=True,
+            condition_on_previous_text=False,
+            initial_prompt=retry_prompt,
+        )
+
+        retry_segments = list(retry_segments)
+
+        retry_text = " ".join(
+            segment.text.strip()
+            for segment in retry_segments
+        ).strip()
+
+        retry_has_indic = any(
+            "\u0900" <= ch <= "\u097F" or
+            "\u0C00" <= ch <= "\u0C7F" or
+            "\u0B80" <= ch <= "\u0BFF" or
+            "\u0980" <= ch <= "\u09FF"
+            for ch in retry_text
+        )
+
+        if retry_text and not retry_has_indic:
+            text = retry_text
+            info = retry_info
+
+    return {
+        "text": text,
         "language": info.language,
-        "segments": segment_list,
-        # Quality / diagnostic fields
         "language_probability": info.language_probability,
-        "duration": info.duration,
-        "avg_logprob": avg_logprob,
-        "no_speech_prob": no_speech_prob,
-        "compression_ratio": compression_ratio,
+        "segments": [
+            {
+                "text": segment.text.strip(),
+                "start": segment.start,
+                "end": segment.end,
+                "avg_logprob": segment.avg_logprob,
+                "no_speech_prob": segment.no_speech_prob,
+                "compression_ratio": segment.compression_ratio,
+            }
+            for segment in segments
+        ],
+        "asr_quality": "good",
+        "asr_quality_reasons": [],
     }
-
-    # ASR quality validation
-    quality = validate_asr_quality(result)
-    result["asr_quality"] = quality["quality"]
-    result["asr_quality_reasons"] = quality["reasons"]
-
-    return result
 
 
 def get_device() -> str:

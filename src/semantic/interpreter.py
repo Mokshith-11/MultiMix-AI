@@ -7,6 +7,8 @@ from typing import Dict, List
 # ============================================================
 
 PHRASE_TRANSLATIONS = {
+    "pesitu irindhan": "was speaking",
+    "irindhan": "was",
     # Telugu
     "nenu": "I",
     "nuvvu": "you",
