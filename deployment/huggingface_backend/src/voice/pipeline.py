@@ -1,11 +1,75 @@
-from typing import Dict
+from typing import Dict, List
 
+from src.config import SUPPORTED_LANGUAGES
 from src.language.segmenter import get_language_segments
 from src.normalization.corrector import normalize_text
 from src.semantic.interpreter import interpret_code_mix
 from src.response.generator import generate_response
 from src.response.voice_response import generate_voice_response
 from src.voice.whisper_engine import transcribe_audio
+
+
+# ============================================================
+# PRIMARY LANGUAGE DERIVATION
+# ============================================================
+
+_SUPPORTED_NON_ENGLISH = [
+    lang for lang in SUPPORTED_LANGUAGES
+    if lang != "English"
+]
+
+
+def derive_primary_language(
+    segments: List[Dict],
+) -> str:
+    """
+    Determine the primary language from token-level segments.
+
+    Rules:
+    1. Ignore English when non-English supported languages
+       are present.
+    2. Weight each token by its confidence score.
+    3. The supported non-English language with the highest
+       weighted presence wins.
+    4. If no non-English language is detected, fall back
+       to English.
+
+    This replaces the unreliable Whisper acoustic language
+    guess for user-facing display.
+    """
+
+    weighted_counts: Dict[str, float] = {}
+
+    for segment in segments:
+
+        language = segment.get("language", "Unknown")
+        confidence = segment.get("confidence", 0.0)
+
+        if language == "Unknown":
+            continue
+
+        if language not in SUPPORTED_LANGUAGES:
+            continue
+
+        weighted_counts[language] = (
+            weighted_counts.get(language, 0.0) + confidence
+        )
+
+    # Check for any non-English supported language.
+    non_english = {
+        lang: score
+        for lang, score in weighted_counts.items()
+        if lang in _SUPPORTED_NON_ENGLISH
+    }
+
+    if non_english:
+        return max(non_english, key=non_english.get)
+
+    # Fall back to English if present.
+    if "English" in weighted_counts:
+        return "English"
+
+    return "Unknown"
 
 
 def process_text(
@@ -108,4 +172,11 @@ def process_voice(
         [],
     )
 
+    # Derive the primary language from segmentation,
+    # not from Whisper's acoustic guess.
+    result["primary_language"] = derive_primary_language(
+        result.get("segments", []),
+    )
+
     return result
+

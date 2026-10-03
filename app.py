@@ -342,12 +342,13 @@ with tab_voice:
                             st.write("**ASR Quality:**", asr_quality)
                             st.write("**Pipeline Status:**", status)
                             st.write("**Quality Reasons:**", result.get("asr_quality_reasons", []))
-                            st.write("**Whisper Language:**", result.get("whisper_language", "unknown"))
+                            st.write("**Whisper Acoustic Language Guess:**", result.get("whisper_language", "unknown"))
                             st.write("**Raw Transcription:**", result.get("transcription", ""))
                         st.stop()
 
                     transcription = result.get("transcription", "")
                     whisper_lang = result.get("whisper_language", "unknown")
+                    primary_lang = result.get("primary_language", "Unknown")
                     segments = result.get("segments", [])
                     response_text = result.get("response", "")
 
@@ -407,12 +408,13 @@ with tab_voice:
                             st.write("**ASR Quality:**", asr_quality)
                             st.write("**Pipeline Status:**", status)
                             st.write("**Quality Reasons:**", modal_res.get("asr_quality_reasons", []))
-                            st.write("**Whisper Language:**", modal_res.get("whisper_language", "unknown"))
+                            st.write("**Whisper Acoustic Language Guess:**", modal_res.get("whisper_language", "unknown"))
                             st.write("**Raw Transcription:**", modal_res.get("transcription", ""))
                         st.stop()
 
                     transcription = modal_res.get("transcription", "")
                     whisper_lang = modal_res.get("whisper_language", "unknown")
+                    primary_lang = modal_res.get("primary_language", "Unknown")
                     segments = modal_res.get("segments", [])
                     response_text = modal_res.get("response", "")
 
@@ -450,9 +452,9 @@ with tab_voice:
             st.subheader("🎙️ Transcription")
             st.write(transcription)
 
-            # 2. 🌐 Whisper Language
-            st.subheader("🌐 Whisper Language")
-            st.write(LANG_NAME_MAP.get(str(whisper_lang).lower(), str(whisper_lang).title()))
+            # 2. 🌐 Primary Detected Language
+            st.subheader("🌐 Primary Detected Language")
+            st.write(primary_lang)
 
             # 3. 🔍 Detected Languages
             st.subheader("🔍 Detected Languages")
@@ -488,6 +490,7 @@ with tab_voice:
                 st.write("**ASR Quality Classification:**", asr_quality)
                 st.write("**ASR Quality Reasons:**", modal_res.get("asr_quality_reasons", []) if deployment_mode != "FULL LOCAL MODEL" else result.get("asr_quality_reasons", []))
                 st.write("**Pipeline Status:**", status)
+                st.write("**Whisper Acoustic Language Guess:**", LANG_NAME_MAP.get(str(whisper_lang).lower(), str(whisper_lang).title()))
                 st.write("**Language Segments:**")
                 for seg in segments:
                     st.write(
