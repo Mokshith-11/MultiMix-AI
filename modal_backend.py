@@ -59,6 +59,7 @@ image = (
         "fastapi>=0.115.0",
         "soundfile>=0.12.0",
         "pydub>=0.25.0",
+        "av>=11,<19",
 
         # IndicF5-compatible NumPy
         "numpy==1.26.4",
